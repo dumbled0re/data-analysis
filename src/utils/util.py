@@ -1,6 +1,6 @@
 import os
 
-from sklearn.externals import joblib
+import joblib
 
 
 class Util:
