@@ -2,10 +2,10 @@ from typing import Callable, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
-from sklearn.metrics import log_loss
-from sklearn.model_selection import StratifiedKFold
+from sklearn.metrics import log_loss, mean_squared_error
+from sklearn.model_selection import KFold, StratifiedKFold
 
-from model import Model
+from model.base_model import Model
 from utils.logger import Logger
 from utils.util import Util
 
@@ -19,6 +19,7 @@ class Runner:
         model_cls: Callable[[str, dict], Model],
         features: List[str],
         params: dict,
+        task_type: str,
         x_train_path: str,
         y_train_path: str,
         x_test_path: str,
@@ -29,6 +30,7 @@ class Runner:
         :param model_cls: モデルのクラス
         :param features: 特徴量のリスト
         :param params: ハイパーパラメータ
+        :param task_type: タスクのタイプ
         :param x_train_path: 説明変数の学習データのパス
         :param y_train_path: 目的変数の学習データのパス
         :param x_test_path: テストデータのパス
@@ -37,6 +39,7 @@ class Runner:
         self.model_cls = model_cls
         self.features = features
         self.params = params
+        self.task_type = task_type
         self.x_train_path = x_train_path
         self.y_train_path = y_train_path
         self.x_test_path = x_test_path
@@ -69,7 +72,14 @@ class Runner:
 
             # バリデーションデータへの予測・評価を行う
             va_pred = model.predict(va_x)
-            score = log_loss(va_y, va_pred, eps=1e-15, normalize=True)
+            if self.task_type == "classification":
+                # 分類問題の場合はクロスエントロピーを評価関数として計算
+                score = log_loss(va_y, va_pred, eps=1e-15, normalize=True)
+            elif self.task_type == "regression":
+                # 回帰問題の場合は別の評価関数を計算（例: RMSE）
+                score = mean_squared_error(va_y, va_pred, squared=False)
+            else:
+                raise ValueError("Invalid task_type")
 
             # モデル、インデックス、予測値、評価を返す
             return model, va_idx, va_pred, score
@@ -95,9 +105,11 @@ class Runner:
         # 各foldで学習を行う
         for i_fold in range(self.n_fold):
             # 学習を行う
-            logger.info(f"{self.run_name} fold {i_fold} - start training")
+            logger.info(f"{self.run_name} fold {i_fold+1} - start training")
             model, va_idx, va_pred, score = self._run_train_fold(i_fold)
-            logger.info(f"{self.run_name} fold {i_fold} - end training - score {score}")
+            logger.info(
+                f"{self.run_name} fold {i_fold+1} - end training - score {score}"
+            )
 
             # モデルを保存する
             model.save_model()
@@ -116,7 +128,7 @@ class Runner:
         logger.info(f"{self.run_name} - end training cv - score {np.mean(scores)}")
 
         # 予測結果の保存
-        Util.dump(preds, f"../model/pred/{self.run_name}-train.pkl")
+        Util.dump(preds, f"models/pred/{self.run_name}-train.pkl")
 
         # 評価結果の保存
         logger.result_scores(self.run_name, scores)
@@ -134,18 +146,18 @@ class Runner:
 
         # 各foldのモデルで予測を行う
         for i_fold in range(self.n_fold):
-            logger.info(f"{self.run_name} - start prediction fold:{i_fold}")
+            logger.info(f"{self.run_name} - start prediction fold:{i_fold+1}")
             model = self._build_model(i_fold)
             model.load_model()
             pred = model.predict(test_x)
             preds.append(pred)
-            logger.info(f"{self.run_name} - end prediction fold:{i_fold}")
+            logger.info(f"{self.run_name} - end prediction fold:{i_fold+1}")
 
         # 予測の平均値を出力する
         pred_avg = np.mean(preds, axis=0)
 
         # 予測結果の保存
-        Util.dump(pred_avg, f"../models/pred/{self.run_name}-test.pkl")
+        Util.dump(pred_avg, f"models/pred/{self.run_name}-test.pkl")
 
         logger.info(f"{self.run_name} - end prediction cv")
 
@@ -176,7 +188,7 @@ class Runner:
         pred = model.predict(test_x)
 
         # 予測結果の保存
-        Util.dump(pred, f"../models/pred/{self.run_name}-test.pkl")
+        Util.dump(pred, f"models/pred/{self.run_name}-test.pkl")
 
         logger.info(f"{self.run_name} - end prediction all")
 
@@ -187,7 +199,7 @@ class Runner:
         :return: モデルのインスタンス
         """
         # ラン名、fold、モデルのクラスからモデルを作成する
-        run_fold_name = f"{self.run_name}-{i_fold}"
+        run_fold_name = f"{self.run_name}-{i_fold+1}"
         return self.model_cls(run_fold_name, self.params)
 
     def _load_x_train(self) -> pd.DataFrame:
@@ -197,7 +209,9 @@ class Runner:
         """
         # 学習データの読込を行う
         # 列名で抽出する以上のことを行う場合、このメソッドの修正が必要
-        return pd.read_csv(self.x_train_path)[self.features]
+        return pd.read_csv(self.x_train_path, engine="python", encoding="utf-8")[
+            self.features
+        ]
 
     def _load_y_train(self) -> pd.Series:
         """学習データの目的変数を読み込む
@@ -205,10 +219,13 @@ class Runner:
         :return: 学習データの目的変数
         """
         # 目的変数の読込を行う
-        train_y = pd.read_csv(self.y_train_path)["target"]
+        train_y = pd.read_csv(self.y_train_path, engine="python", encoding="utf-8")[
+            "target"
+        ]
         # FIXME: ここが何で-1をしているかが分からない
-        train_y = np.array([int(st[-1]) for st in train_y]) - 1
-        train_y = pd.Series(train_y)
+        # train_y = np.array([int(st[-1]) for st in train_y]) - 1
+        # train_y = pd.Series(train_y)
+        train_y = pd.Series(np.array(train_y))
         return train_y
 
     def _load_x_test(self) -> pd.DataFrame:
@@ -227,6 +244,12 @@ class Runner:
         # 学習データ・バリデーションデータを分けるインデックスを返す
         # ここでは乱数を固定して毎回作成しているが、ファイルに保存する方法もある
         train_y = self._load_y_train()
-        dummy_x = np.zeros(len(train_y))
-        skf = StratifiedKFold(n_splits=self.n_fold, shuffle=True, random_state=71)
-        return list(skf.split(dummy_x, train_y))[i_fold]
+        if self.task_type == "classification":
+            dummy_x = np.zeros(len(train_y))
+            kf = StratifiedKFold(n_splits=self.n_fold, shuffle=True, random_state=71)
+            return list(kf.split(dummy_x, train_y))[i_fold]
+        elif self.task_type == "regression":
+            kf = KFold(n_splits=self.n_fold, shuffle=True, random_state=71)
+            return list(kf.split(train_y))[i_fold]
+        else:
+            raise ValueError("Invalid task_type")
