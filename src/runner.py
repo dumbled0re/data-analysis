@@ -233,7 +233,9 @@ class Runner:
 
         :return: テストデータの特徴量
         """
-        return pd.read_csv(self.x_test_path)[self.features]
+        return pd.read_csv(self.x_test_path, engine="python", encoding="utf-8")[
+            self.features
+        ]
 
     def _load_index_fold(self, i_fold: int) -> np.array:
         """クロスバリデーションでのfoldを指定して対応するレコードのインデックスを返す
