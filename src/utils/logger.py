@@ -9,12 +9,8 @@ class Logger:
         self.general_logger = logging.getLogger("general")
         self.result_logger = logging.getLogger("result")
         stream_handler = logging.StreamHandler()
-        file_general_handler = logging.FileHandler(
-            "../data-analysis/models/log/general.log"
-        )
-        file_result_handler = logging.FileHandler(
-            "../data-analysis/models/log/result.log"
-        )
+        file_general_handler = logging.FileHandler("models/log/general.log")
+        file_result_handler = logging.FileHandler("models/log/result.log")
         if len(self.general_logger.handlers) == 0:
             self.general_logger.addHandler(stream_handler)
             self.general_logger.addHandler(file_general_handler)
@@ -46,4 +42,4 @@ class Logger:
         return str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
     def to_ltsv(self, dic):
-        return "\t".join(["{}:{}".format(key, value) for key, value in dic.items()])
+        return " ".join(["{}:{}".format(key, value) for key, value in dic.items()])
