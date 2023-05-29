@@ -39,7 +39,7 @@ class Logger:
         dic["name"] = run_name
         dic["score"] = np.mean(scores)
         for i, score in enumerate(scores):
-            dic[f"score{i}"] = score
+            dic[f"score{i+1}"] = score
         self.result(self.to_ltsv(dic))
 
     def now_string(self):
