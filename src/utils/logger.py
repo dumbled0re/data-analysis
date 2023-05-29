@@ -42,4 +42,4 @@ class Logger:
         return str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
     def to_ltsv(self, dic):
-        return " ".join(["{}:{}".format(key, value) for key, value in dic.items()])
+        return " ".join([f"{key}: {value}" for key, value in dic.items()])
