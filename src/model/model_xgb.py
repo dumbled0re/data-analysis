@@ -39,15 +39,11 @@ class ModelXGB(Model):
         return self.model.predict(dtest, ntree_limit=self.model.best_ntree_limit)
 
     def save_model(self):
-        model_path = os.path.join(
-            "../data-analysis/models/model", f"{self.run_fold_name}.model"
-        )
+        model_path = os.path.join("models/model", f"{self.run_fold_name}.model")
         os.makedirs(os.path.dirname(model_path), exist_ok=True)
         # best_ntree_limitが消えるのを防ぐため、pickleで保存することとした
         Util.dump(self.model, model_path)
 
     def load_model(self):
-        model_path = os.path.join(
-            "../data-analysis/models/model", f"{self.run_fold_name}.model"
-        )
+        model_path = os.path.join("models/model", f"{self.run_fold_name}.model")
         self.model = Util.load(model_path)
