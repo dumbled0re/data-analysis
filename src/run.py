@@ -1,50 +1,33 @@
-from model.model_nn import ModelNN
 from model.model_xgb import ModelXGB
 from runner import Runner
+from utils import config
 from utils.submission import Submission
 
 if __name__ == "__main__":
-    params_xgb = {
-        "objective": "multi:softprob",
-        "eval_metric": "mlogloss",
-        "num_class": 9,
-        "max_depth": 12,
-        "eta": 0.1,
-        "min_child_weight": 10,
-        "subsample": 0.9,
-        "colsample_bytree": 0.8,
-        "silent": 1,
-        "random_state": 71,
-        "num_round": 10000,
-        "early_stopping_rounds": 10,
-    }
-
-    params_xgb_all = dict(params_xgb)
-    params_xgb_all["num_round"] = 350
-
-    params_nn = {
-        "layers": 3,
-        # サンプルのため早く終わるように設定
-        "nb_epoch": 5,  # 1000
-        "patience": 10,
-        "dropout": 0.5,
-        "units": 512,
-    }
-
-    # 特徴量の指定
-    features = [f"feat_{i}" for i in range(1, 94)]
-
     # xgboostによる学習・予測
-    runner = Runner("xgb1", ModelXGB, features, params_xgb)
+    runner = Runner(
+        run_name="xgb1",
+        model_cls=ModelXGB,
+        features=config.features,
+        params=config.rg_params_xgb,
+        task_type="regression",
+        x_train_path="data/processed/train_culture_medium.csv",
+        y_train_path="data/processed/train_culture_medium.csv",
+        x_test_path="data/processed/test_culture_medium.csv",
+    )
     runner.run_train_cv()
     runner.run_predict_cv()
-    Submission.create_submission("xgb1")
+    submission = Submission(
+        run_name="xgb1",
+        submission_file_path="data/processed/test_culture_medium_for_submission.csv",
+    )
+    submission.create_submission()
 
     # ニューラルネットによる学習・予測
-    runner = Runner("nn1", ModelNN, features, params_nn)
-    runner.run_train_cv()
-    runner.run_predict_cv()
-    Submission.create_submission("nn1")
+    # runner = Runner("nn1", ModelNN, features, params_nn)
+    # runner.run_train_cv()
+    # runner.run_predict_cv()
+    # Submission.create_submission("nn1")
 
     """
     # (参考）xgboostによる学習・予測 - 学習データ全体を使う場合
