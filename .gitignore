@@ -163,6 +163,7 @@ cython_debug/
 .vscode
 *.csv
 *.xls
+*.model
 *.pkl
 *.pth
 *.ipynb

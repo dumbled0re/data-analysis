@@ -9,8 +9,8 @@ class Logger:
         self.general_logger = logging.getLogger("general")
         self.result_logger = logging.getLogger("result")
         stream_handler = logging.StreamHandler()
-        file_general_handler = logging.FileHandler("../../models/general.log")
-        file_result_handler = logging.FileHandler("../../models/result.log")
+        file_general_handler = logging.FileHandler("models/log/general.log")
+        file_result_handler = logging.FileHandler("models/log/result.log")
         if len(self.general_logger.handlers) == 0:
             self.general_logger.addHandler(stream_handler)
             self.general_logger.addHandler(file_general_handler)
@@ -35,11 +35,11 @@ class Logger:
         dic["name"] = run_name
         dic["score"] = np.mean(scores)
         for i, score in enumerate(scores):
-            dic[f"score{i}"] = score
+            dic[f"score{i+1}"] = score
         self.result(self.to_ltsv(dic))
 
     def now_string(self):
         return str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
     def to_ltsv(self, dic):
-        return "\t".join(["{}:{}".format(key, value) for key, value in dic.items()])
+        return " ".join([f"{key}: {value}" for key, value in dic.items()])
